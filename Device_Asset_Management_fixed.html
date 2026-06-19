@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Device Asset Management</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ───── THEME VARIABLES ───── */
+  [data-theme="light"] {
+    --bg: #f0f4f8;
+    --card-bg: #ffffff;
+    --card-border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --label: #475569;
+    --input-bg: #f8fafc;
+    --input-border: #cbd5e1;
+    --input-focus-bg: #fff;
+    --section-title: #1e40af;
+    --section-border: #dbeafe;
+    --subsection-bg: #f8fafc;
+    --subsection-border: #e2e8f0;
+    --header-color: #1e40af;
+    --header-sub: #64748b;
+    --pre-bg: #0f172a;
+    --setup-bg: #fffbeb;
+    --setup-border: #fde68a;
+    --setup-heading: #b45309;
+    --setup-li: #78716c;
+    --record-count: #94a3b8;
+    --radio-bg: #f8fafc;
+    --radio-border: #cbd5e1;
+    --radio-hover-bg: #eff6ff;
+    --toast-shadow: rgba(0,0,0,0.15);
+    --shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  [data-theme="dark"] {
+    --bg: #0f172a;
+    --card-bg: #1e293b;
+    --card-border: #334155;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --label: #94a3b8;
+    --input-bg: #0f172a;
+    --input-border: #475569;
+    --input-focus-bg: #1e293b;
+    --section-title: #60a5fa;
+    --section-border: #1e3a5f;
+    --subsection-bg: #0f172a;
+    --subsection-border: #334155;
+    --header-color: #93c5fd;
+    --header-sub: #64748b;
+    --pre-bg: #020617;
+    --setup-bg: #1c1a0a;
+    --setup-border: #854d0e;
+    --setup-heading: #fbbf24;
+    --setup-li: #a8a29e;
+    --record-count: #64748b;
+    --radio-bg: #0f172a;
+    --radio-border: #475569;
+    --radio-hover-bg: #1e3a5f;
+    --toast-shadow: rgba(0,0,0,0.4);
+    --shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    padding: 24px 20px;
+    color: var(--text);
+    transition: background 0.3s, color 0.3s;
+  }
+
+  /* ───── THEME TOGGLE ───── */
+  .theme-toggle-wrap {
+    position: fixed; top: 16px; right: 20px; z-index: 1000;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .theme-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
+  .theme-switch {
+    position: relative; width: 52px; height: 28px; cursor: pointer;
+  }
+  .theme-switch input { opacity: 0; width: 0; height: 0; }
+  .theme-slider {
+    position: absolute; inset: 0;
+    background: #cbd5e1; border-radius: 28px;
+    transition: background 0.3s;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 5px; font-size: 0.75rem;
+  }
+  .theme-slider::before {
+    content: ''; position: absolute;
+    width: 20px; height: 20px; left: 4px; top: 4px;
+    background: #fff; border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    z-index: 1;
+  }
+  .theme-switch input:checked + .theme-slider { background: #1e40af; }
+  .theme-switch input:checked + .theme-slider::before { transform: translateX(24px); }
+
+  /* ───── HEADER ───── */
+  .header { text-align: center; margin-bottom: 24px; }
+  .header h1 {
+    font-size: 1.8rem; font-weight: 700;
+    color: var(--header-color); letter-spacing: 0.5px;
+  }
+  .header p { color: var(--header-sub); font-size: 0.9rem; margin-top: 4px; }
+
+  /* ───── OPERATION TABS ───── */
+  .op-tabs {
+    display: flex; gap: 0; margin-bottom: 18px;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .op-tab {
+    flex: 1; padding: 12px 8px;
+    background: none; border: none;
+    font-size: 0.88rem; font-weight: 700;
+    cursor: pointer; color: var(--text-muted);
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    border-right: 1px solid var(--card-border);
+  }
+  .op-tab:last-child { border-right: none; }
+  .op-tab:hover { background: var(--subsection-bg); color: var(--text); }
+  .op-tab.active-insert { background: linear-gradient(135deg,#1d4ed8,#3b82f6); color: #fff; }
+  .op-tab.active-update { background: linear-gradient(135deg,#0f766e,#14b8a6); color: #fff; }
+  .op-tab.active-delete { background: linear-gradient(135deg,#b91c1c,#ef4444); color: #fff; }
+
+  /* ───── CONFIG BANNER ───── */
+  .config-banner {
+    background: #fff7ed; border: 1.5px solid #fed7aa;
+    border-radius: 12px; padding: 14px 18px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  [data-theme="dark"] .config-banner { background: #1c0a00; border-color: #92400e; }
+  .config-banner.connected { background: #f0fdf4; border-color: #86efac; }
+  [data-theme="dark"] .config-banner.connected { background: #0a1f12; border-color: #166534; }
+  .config-banner-icon { font-size: 1.3rem; }
+  .config-banner-text { flex: 1; min-width: 200px; }
+  .config-banner-text strong { color: #c2410c; display: block; font-size: 0.88rem; }
+  .config-banner.connected .config-banner-text strong { color: #16a34a; }
+  .config-banner-text span { font-size: 0.78rem; color: var(--text-muted); }
+  .config-input-wrap { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .config-input {
+    background: #fff; border: 1px solid #fdba74;
+    border-radius: 8px; padding: 8px 12px;
+    color: #1e293b; font-size: 0.82rem; width: 340px; outline: none;
+  }
+  [data-theme="dark"] .config-input { background: #0f172a; border-color: #475569; color: var(--text); }
+  .config-input::placeholder { color: #94a3b8; }
+  .btn-connect {
+    background: #ea580c; color: #fff; border: none;
+    border-radius: 8px; padding: 8px 18px;
+    font-size: 0.82rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+  }
+  .btn-connect:hover { background: #c2410c; }
+  .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #ef4444; display: inline-block; margin-right: 5px; flex-shrink: 0;
+  }
+  .status-dot.green { background: #22c55e; }
+
+  /* ───── CARD ───── */
+  .card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 22px 26px; margin-bottom: 16px;
+    box-shadow: var(--shadow); transition: background 0.3s, border-color 0.3s;
+  }
+
+  .section-title {
+    font-size: 0.78rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--section-title); margin-bottom: 16px;
+    padding-bottom: 8px; border-bottom: 2px solid var(--section-border);
+  }
+
+  /* ───── OPERATION PANELS ───── */
+  .op-panel { display: none; }
+  .op-panel.active { display: block; }
+
+  /* Update/Delete search bar */
+  .search-bar-card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 20px 26px; margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .search-bar-inner { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .search-bar-inner .field { flex: 1; min-width: 200px; }
+  .btn-search {
+    padding: 9px 22px; border-radius: 8px; border: none;
+    font-size: 0.88rem; font-weight: 700; cursor: pointer;
+    background: linear-gradient(135deg,#0f766e,#14b8a6); color: #fff;
+    white-space: nowrap;
+  }
+  .btn-search-del {
+    padding: 9px 22px; border-radius: 8px; border: none;
+    font-size: 0.88rem; font-weight: 700; cursor: pointer;
+    background: linear-gradient(135deg,#b91c1c,#ef4444); color: #fff;
+    white-space: nowrap;
+  }
+  .btn-search:hover { opacity: 0.9; }
+  .btn-search-del:hover { opacity: 0.9; }
+
+  /* fetched record preview */
+  .fetched-record {
+    background: var(--subsection-bg); border: 1.5px solid var(--subsection-border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+    font-size: 0.82rem; display: none;
+  }
+  .fetched-record.visible { display: block; }
+  .fetched-record h4 { color: var(--section-title); margin-bottom: 8px; font-size: 0.8rem; }
+  .fetched-record table { width: 100%; border-collapse: collapse; }
+  .fetched-record td { padding: 4px 8px; color: var(--text); vertical-align: top; }
+  .fetched-record td:first-child { color: var(--text-muted); font-weight: 600; width: 45%; }
+
+  /* delete confirm */
+  .delete-confirm {
+    background: #fef2f2; border: 1.5px solid #fca5a5;
+    border-radius: 10px; padding: 16px 18px; margin-top: 12px;
+    display: none; text-align: center;
+  }
+  [data-theme="dark"] .delete-confirm { background: #1a0606; border-color: #7f1d1d; }
+  .delete-confirm.visible { display: block; }
+  .delete-confirm p { font-size: 0.88rem; color: #b91c1c; margin-bottom: 12px; font-weight: 600; }
+  [data-theme="dark"] .delete-confirm p { color: #fca5a5; }
+  .btn-confirm-del {
+    background: linear-gradient(135deg,#b91c1c,#ef4444); color: #fff;
+    border: none; border-radius: 8px; padding: 10px 28px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer; margin-right: 10px;
+  }
+  .btn-cancel {
+    background: var(--subsection-bg); color: var(--text-muted);
+    border: 1px solid var(--card-border); border-radius: 8px;
+    padding: 10px 20px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  }
+
+  /* ───── FORM FIELDS ───── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: 0.76rem; font-weight: 600;
+    color: var(--label); text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .field label .req { color: #ef4444; margin-left: 2px; }
+
+  input[type="text"], select {
+    background: var(--input-bg); border: 1.5px solid var(--input-border);
+    border-radius: 8px; padding: 9px 12px;
+    color: var(--text); font-size: 0.9rem;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    outline: none; width: 100%;
+  }
+  input[type="text"]:focus, select:focus {
+    border-color: #3b82f6; background: var(--input-focus-bg);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  }
+  input.error, select.error { border-color: #ef4444 !important; background: #fff5f5 !important; }
+  [data-theme="dark"] input.error, [data-theme="dark"] select.error { background: #1a0606 !important; }
+  select option { background: var(--card-bg); color: var(--text); }
+
+  .radio-group { display: flex; gap: 12px; margin-top: 4px; }
+  .radio-option {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; padding: 8px 16px;
+    border-radius: 8px; border: 1.5px solid var(--radio-border);
+    background: var(--radio-bg);
+    transition: all 0.2s; font-size: 0.9rem; color: var(--label);
+  }
+  .radio-option:hover { border-color: #3b82f6; background: var(--radio-hover-bg); }
+  .radio-option input[type="radio"] { width: 15px; height: 15px; accent-color: #3b82f6; }
+  .radio-option.selected { border-color: #3b82f6; background: var(--radio-hover-bg); color: var(--section-title); font-weight: 600; }
+
+  .device-section { display: none; animation: fadeIn 0.25s ease; }
+  .device-section.visible { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+
+  .pc-subsection {
+    background: var(--subsection-bg); border: 1px solid var(--subsection-border);
+    border-radius: 10px; padding: 14px 16px; margin-top: 12px;
+  }
+  .pc-subsection-title {
+    font-size: 0.72rem; font-weight: 700; color: #0f766e;
+    text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px;
+  }
+
+  /* ───── SUBMIT AREA ───── */
+  .submit-area { text-align: center; }
+
+  .btn-submit {
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    color: #fff; border: none; border-radius: 10px;
+    padding: 13px 48px; font-size: 0.95rem; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.5px;
+    box-shadow: 0 3px 12px rgba(59,130,246,0.3);
+    transition: all 0.2s; text-transform: uppercase;
+  }
+  .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 5px 18px rgba(59,130,246,0.4); }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .btn-update {
+    background: linear-gradient(135deg,#0f766e,#14b8a6);
+    color: #fff; border: none; border-radius: 10px;
+    padding: 13px 48px; font-size: 0.95rem; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.5px;
+    box-shadow: 0 3px 12px rgba(20,184,166,0.3);
+    transition: all 0.2s; text-transform: uppercase;
+  }
+  .btn-update:hover { transform: translateY(-1px); }
+  .btn-update:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .btn-clear {
+    background: var(--subsection-bg); color: var(--text-muted);
+    border: 1px solid var(--card-border); border-radius: 10px;
+    padding: 13px 26px; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; text-transform: uppercase; margin-left: 10px;
+  }
+  .btn-clear:hover { background: var(--card-border); color: var(--text); }
+
+  .loading-spinner {
+    display: inline-block; width: 16px; height: 16px;
+    border: 3px solid rgba(255,255,255,0.4);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 7px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ───── TOAST ───── */
+  .toast {
+    position: fixed; top: 20px; right: 20px;
+    padding: 13px 20px; border-radius: 10px;
+    font-size: 0.88rem; font-weight: 600;
+    box-shadow: 0 4px 16px var(--toast-shadow);
+    display: none; z-index: 9999;
+    animation: slideIn 0.3s ease; max-width: 300px;
+  }
+  .toast.success { background:#f0fdf4; color:#15803d; border:1.5px solid #86efac; }
+  .toast.error   { background:#fef2f2; color:#b91c1c; border:1.5px solid #fca5a5; }
+  [data-theme="dark"] .toast.success { background:#0a1f12; color:#4ade80; border-color:#166534; }
+  [data-theme="dark"] .toast.error   { background:#1a0606; color:#f87171; border-color:#7f1d1d; }
+  @keyframes slideIn { from { transform:translateX(60px);opacity:0; } to { transform:translateX(0);opacity:1; } }
+
+  .record-count { text-align:center; color:var(--record-count); font-size:0.8rem; margin-top:12px; }
+  .record-count strong { color:#3b82f6; }
+
+  /* ───── BARCODE TAB ───── */
+  .op-tab.active-barcode { background: linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; }
+
+  /* Barcode label card */
+  .barcode-label-wrap {
+    display:none; margin-top:18px;
+  }
+  .barcode-label-wrap.visible { display:block; }
+
+  .barcode-label {
+    background:#fff; border:1.5px solid #e2e8f0;
+    border-radius:14px; padding:22px 28px; max-width:520px;
+    margin:0 auto; box-shadow:0 2px 16px rgba(0,0,0,0.10);
+    font-family:'Segoe UI',Arial,sans-serif;
+  }
+  .barcode-label-header {
+    display:flex; align-items:center; gap:12px;
+    border-bottom:2px solid #1d4ed8; padding-bottom:10px; margin-bottom:14px;
+  }
+  .barcode-label-header .company { font-size:1rem; font-weight:800; color:#1d4ed8; }
+  .barcode-label-header .dept { font-size:0.75rem; color:#64748b; }
+  .barcode-label-emp {
+    display:grid; grid-template-columns:1fr 1fr; gap:6px 16px;
+    margin-bottom:14px;
+  }
+  .barcode-label-emp .bl-item { font-size:0.78rem; color:#374151; }
+  .barcode-label-emp .bl-item span { font-weight:700; color:#111827; display:block; }
+  .barcode-label-device {
+    background:#f0f9ff; border:1px solid #bae6fd;
+    border-radius:8px; padding:10px 14px; margin-bottom:14px;
+    font-size:0.78rem; color:#0369a1;
+  }
+  .barcode-label-device .dl-title { font-weight:800; font-size:0.8rem; margin-bottom:6px; color:#0c4a6e; }
+  .barcode-label-device table { width:100%; }
+  .barcode-label-device td { padding:2px 4px; vertical-align:top; }
+  .barcode-label-device td:first-child { font-weight:700; color:#0369a1; width:48%; }
+  #barcodeCanvas { display:block; margin:10px auto 4px; }
+  .barcode-empid-text { text-align:center; font-size:0.8rem; font-weight:700; color:#1d4ed8; letter-spacing:2px; }
+  .barcode-date-row { text-align:right; font-size:0.68rem; color:#94a3b8; margin-top:8px; }
+
+  .btn-print {
+    background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff;
+    border:none; border-radius:10px; padding:12px 36px;
+    font-size:0.95rem; font-weight:700; cursor:pointer;
+    box-shadow:0 3px 12px rgba(168,85,247,0.3);
+    transition:all 0.2s; text-transform:uppercase; margin-top:14px;
+  }
+  .btn-print:hover { transform:translateY(-1px); }
+
+  @media print {
+    body > *:not(#printArea) { display:none !important; }
+    #printArea { display:block !important; position:fixed; top:0; left:0; width:100%; }
+    .barcode-label { box-shadow:none; border:1px solid #ccc; max-width:100%; }
+    .no-print { display:none !important; }
+  }
+
+  @media (max-width: 600px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    body { padding: 10px; }
+    .card { padding: 14px; }
+    .config-input { width: 100%; }
+    .op-tab { font-size: 0.75rem; padding: 10px 4px; }
+    .theme-toggle-wrap { top: 10px; right: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<div class="theme-toggle-wrap">
+  <span class="theme-label" id="themeLabel">☀️ Light</span>
+  <label class="theme-switch">
+    <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+    <span class="theme-slider"></span>
+  </label>
+</div>
+
+<div class="header">
+  <h1>🖥️ Device Asset Management</h1>
+  <p>IT Department · Device Assignment Registry</p>
+</div>
+
+<div class="config-banner" id="configBanner">
+  <span class="config-banner-icon">🔗</span>
+  <div class="config-banner-text">
+    <strong><span class="status-dot" id="statusDot"></span>Google Sheets Connection</strong>
+    <span>Paste your Google Apps Script Web App URL below to connect</span>
+  </div>
+  <div class="config-input-wrap">
+    <input type="text" class="config-input" id="scriptUrl"
+      placeholder="https://script.google.com/macros/s/YOUR_ID/exec">
+    <button class="btn-connect" onclick="saveUrl()">Connect ✓</button>
+  </div>
+</div>
+
+<div class="op-tabs">
+  <button class="op-tab active-insert" id="tab_insert" onclick="switchTab('insert')">➕ Insert</button>
+  <button class="op-tab" id="tab_update" onclick="switchTab('update')">✏️ Update</button>
+  <button class="op-tab" id="tab_delete" onclick="switchTab('delete')">🗑️ Delete</button>
+  <button class="op-tab" id="tab_barcode" onclick="switchTab('barcode')">🔖 Barcode</button>
+</div>
+
+<div class="op-panel active" id="panel_insert">
+
+  <div class="card">
+    <div class="section-title">👤 Employee Information</div>
+    <div class="grid-3">
+      <div class="field">
+        <label>S/N</label>
+        <input type="text" id="serial_no" placeholder="Selecting Device Type..." readonly style="opacity:0.7; cursor:not-allowed; background:#e2e8f0;">
+      </div>
+      <div class="field">
+        <label>Plant Name <span class="req">*</span></label>
+        <select id="plant_name">
+          <option value="">-- Choose Option --</option>
+          <option>HO</option>
+          <option>KIM</option>
+          <option>KOSAMBA</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Employee ID <span class="req">*</span></label>
+        <input type="text" id="emp_id" placeholder="e.g. EMP001">
+      </div>
+      <div class="field">
+        <label>Employee Name <span class="req">*</span></label>
+        <input type="text" id="emp_name" placeholder="Full Name">
+      </div>
+      <div class="field">
+        <label>Department <span class="req">*</span></label>
+        <select id="department">
+          <option value="">-- Choose Department --</option>
+          <option>IT</option>
+          <option>Maintenance</option>
+          <option>Packing Area</option>
+          <option>PDI</option>
+          <option>PPC</option>
+          <option>Production</option>
+          <option>Quality</option>
+          <option>Account</option>
+          <option>Purchase</option>
+          <option>Admin</option>
+          <option>HR</option>
+          <option>Security</option>
+          <option>EHS</option>
+          <option>R&D</option>
+          <option>Store</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Location <span class="req">*</span></label>
+        <select id="location">
+          <option value="">-- Choose Location --</option>
+          <option>Admin</option><option>5BB</option><option>Despetch</option>
+          <option>EHS</option><option>Line 1</option><option>Line 2</option>
+          <option>Line 3</option><option>Line 4</option><option>Line 5</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">💻 Device Information</div>
+    <div class="grid-2">
+      <div class="field">
+        <label>Device Type <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="radio-option" id="lbl_pc">
+            <input type="radio" name="device_type" value="PC" onchange="onDeviceTypeChange()"> 🖥️ PC
+          </label>
+          <label class="radio-option" id="lbl_laptop">
+            <input type="radio" name="device_type" value="Laptop" onchange="onDeviceTypeChange()"> 💻 Laptop
+          </label>
+          <label class="radio-option" id="lbl_store">
+            <input type="radio" name="device_type" value="Store" onchange="onDeviceTypeChange()"> 🛒 Store
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div id="laptop_section" class="device-section">
+      <div style="margin-top:16px;padding-top:14px;border-top:1.5px dashed var(--card-border);">
+        <div class="pc-subsection-title" style="color:#1d4ed8;margin-bottom:12px;font-size:0.74rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">💻 Laptop Details</div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Model No. <span class="req">*</span></label>
+            <input type="text" id="laptop_model" placeholder="e.g. Pavilion 15">
+          </div>
+          <div class="field">
+            <label>Serial No. <span class="req">*</span></label>
+            <input type="text" id="laptop_serial" placeholder="Laptop Serial Number">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pc_section" class="device-section">
+      <div style="margin-top:16px;padding-top:14px;border-top:1.5px dashed var(--card-border);">
+        <div class="pc-subsection-title" style="color:#1d4ed8;margin-bottom:4px;font-size:0.74rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">🖥️ PC Details</div>
+
+        <div class="pc-subsection">
+          <div class="pc-subsection-title">🧠 CPU</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Cpu Serial No. <span class="req">*</span></label>
+              <input type="text" id="device_serial" placeholder="e.g. SN-2024-001">
+            </div>
+            <div class="field">
+              <label>Model No. <span class="req">*</span></label>
+              <input type="text" id="display_model" placeholder="e.g. LG 24MP60G">
+            </div>
+          </div>
+          <div class="grid-3" style="margin-top:12px;">
+            <div class="field">
+              <label>Brand Name <span class="req">*</span></label>
+              <select id="device_brand">
+                <option value="">-- Choose Brand --</option>
+                <option>HP</option><option>Dell</option>
+                <option>Asus</option><option>Lenovo</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="pc-subsection">
+          <div class="pc-subsection-title">🖥️ Display / Monitor</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Display Serial No. <span class="req">*</span></label>
+              <input type="text" id="display_serial" placeholder="Monitor Serial No.">
+            </div>
+            <div class="field">
+              <label>Model No. <span class="req">*</span></label>
+              <input type="text" id="display_model_no" placeholder="e.g. LG 24MP60G">
+            </div>
+          </div>
+        </div>
+
+        <div class="pc-subsection">
+          <div class="pc-subsection-title">⌨️ Keyboard</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Brand Name <span class="req">*</span></label>
+              <input type="text" id="kb_brand" placeholder="e.g. Logitech">
+            </div>
+            <div class="field">
+              <label>Serial No. <span class="req">*</span></label>
+              <input type="text" id="kb_serial" placeholder="Keyboard Serial No.">
+            </div>
+          </div>
+        </div>
+
+        <div class="pc-subsection">
+          <div class="pc-subsection-title">🖱️ Mouse</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Brand Name <span class="req">*</span></label>
+              <input type="text" id="mouse_brand" placeholder="e.g. Logitech">
+            </div>
+            <div class="field">
+              <label>Serial No. <span class="req">*</span></label>
+              <input type="text" id="mouse_serial" placeholder="Mouse Serial No.">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="store_section" class="device-section">
+      <div style="margin-top:16px;padding-top:14px;border-top:1.5px dashed var(--card-border);">
+        <div class="pc-subsection-title" style="color:#0f766e;margin-bottom:12px;font-size:0.74rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">🛒 Store Item Details</div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Model No. <span class="req">*</span></label>
+            <input type="text" id="store_model" placeholder="e.g. Model XYZ-100">
+          </div>
+          <div class="field">
+            <label>Serial No. <span class="req">*</span></label>
+            <input type="text" id="store_serial" placeholder="Item Serial Number">
+          </div>
+        </div>
+        <div class="grid-3" style="margin-top:12px;">
+          <div class="field">
+            <label>Material Type <span class="req">*</span></label>
+            <select id="store_material_type">
+              <option value="">-- Choose Type --</option>
+              <option value="12V adaptor">12V adaptor</option>
+              <option value="Brother Printer Blade">Brother Printer Blade</option>
+              <option value="BIOS CELL">BIOS CELL</option>
+              <option value="Sata Cable">Sata Cable</option>
+              <option value="Zebra Scanner USB TO Lan">Zebra Scanner USB TO Lan</option>
+              <option value="Restol 2000 Cable">Restol 2000 Cable</option>
+              <option value="Printer Cable">Printer Cable</option>
+              <option value="Power Cable">Power Cable</option>
+              <option value="Printer Power Cable">Printer Power Cable</option>
+              <option value="VGA Cable">VGA Cable</option>
+              <option value="Patch Cable">Patch Cable</option>
+              <option value="DP to HDMI converter">DP to HDMI converter</option>
+              <option value="PCI Card">PCI Card</option>
+              <option value="USB Casing HHD">USB Casing HHD</option>
+              <option value="USB to Sata Cable">USB to Sata Cable</option>
+              <option value="DP to HDMI">DP to HDMI</option>
+              <option value="D-Link Cat-6">D-Link Cat-6</option>
+              <option value="Brother DRUM Set">Brother DRUM Set</option>
+              <option value="Brother DRUM">Brother DRUM</option>
+              <option value="USB to USB Extension (1.5)">USB to USB Extension (1.5)</option>
+              <option value="USB to USB Extension (3.0)">USB to USB Extension (3.0)</option>
+              <option value="USB to USB Extension (5.0)">USB to USB Extension (5.0)</option>
+              <option value="Junction Box">Junction Box</option>
+              <option value="Media Converter A">Media Converter A</option>
+              <option value="Media Converter B">Media Converter B</option>
+              <option value="Mouse Pad">Mouse Pad</option>
+              <option value="RJ 45">RJ 45</option>
+              <option value="Telephone(Panasonic)">Telephone(Panasonic)</option>
+              <option value="SMPS">SMPS</option>
+              <option value="SANDISK Pendrive">SANDISK Pendrive</option>
+              <option value="Crimping Tools">Crimping Tools</option>
+              <option value="Radmi Tablet">Radmi Tablet</option>
+              <option value="TP-Link SFP Module">TP-Link SFP Module</option>
+              <option value="CRC RACK">CRC RACK</option>
+              <option value="Brother Toner">Brother Toner</option>
+              <option value="Canon 071 cartidge">Canon 071 cartidge</option>
+              <option value="HP 4004DN(152A) cartidge">HP 4004DN(152A) cartidge</option>
+              <option value="HP Printer MFP-M72625 Toner">HP Printer MFP-M72625 Toner</option>
+              <option value="Canon 072H cartidge">Canon 072H cartidge</option>
+              <option value="HP 12A Powder">HP 12A Powder</option>
+              <option value="Brother Powder">Brother Powder</option>
+              <option value="HP Powder M72625">HP Powder M72625</option>
+              <option value="Canon/HP Printer Powder 4004(152A)(88A)">Canon/HP Printer Powder 4004(152A)(88A)</option>
+              <option value="TP-Link SFP Module RJ 45">TP-Link SFP Module RJ 45</option>
+              <option value="RAM">RAM</option>
+              <option value="SSD">SSD</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>PR No. <span class="req">*</span></label>
+            <input type="text" id="store_pr_no" placeholder="e.g. PR-2024-001">
+          </div>
+          <div class="field">
+            <label>PO No. <span class="req">*</span></label>
+            <input type="text" id="store_po_no" placeholder="e.g. PO-2024-001">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="submit-area">
+      <button class="btn-submit" id="submitBtn" onclick="submitForm()">💾 Insert to Sheet + Server</button>
+      <button class="btn-clear" onclick="clearForm()">🗑️ Clear</button>
+    </div>
+    <div class="record-count">Total Entries in Sheet: <strong id="rec_count">—</strong></div>
+  </div>
+
+</div>
+
+<div class="op-panel" id="panel_update">
+  <div class="search-bar-card">
+    <div class="section-title">🔍 Find Record by Employee ID</div>
+    <div class="search-bar-inner">
+      <div class="field">
+        <label>Employee ID <span class="req">*</span></label>
+        <input type="text" id="u_search_empid" placeholder="e.g. EMP001">
+      </div>
+      <button class="btn-search" onclick="fetchRecord()">🔍 Fetch Record</button>
+    </div>
+    <div class="fetched-record" id="fetchedPreview">
+      <h4>📋 Current Record Found:</h4>
+      <table id="fetchedTable"></table>
+    </div>
+  </div>
+
+  <div class="card" id="updateFormCard" style="display:none;">
+    <div class="section-title">✏️ Update Employee & Device Information</div>
+    <div class="grid-3">
+      <div class="field">
+        <label>S/N.</label>
+        <input type="text" id="u_serial_no" readonly style="opacity:0.7; cursor:not-allowed; background:#e2e8f0;">
+      </div>
+      <div class="field">
+        <label>Plant Name <span class="req">*</span></label>
+        <select id="u_plant_name">
+          <option value="">-- Choose Option --</option>
+          <option>HO</option><option>KIM</option><option>KOSAMBA</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Employee ID</label>
+        <input type="text" id="u_emp_id" readonly style="opacity:0.6;cursor:not-allowed;">
+      </div>
+      <div class="field">
+        <label>Employee Name <span class="req">*</span></label>
+        <input type="text" id="u_emp_name" placeholder="Full Name">
+      </div>
+      <div class="field">
+        <label>Department <span class="req">*</span></label>
+        <select id="u_department">
+          <option value="">-- Choose Department --</option>
+          <option>Account</option><option>IT</option><option>HR</option>
+          <option>Finance</option><option>Admin</option><option>Purchase</option>
+          <option>Sales</option><option>Marketing</option><option>Production</option>
+          <option>Quality</option><option>Store</option><option>Maintenance</option>
+          <option>Security</option><option>Management</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Location <span class="req">*</span></label>
+        <select id="u_location">
+          <option value="">-- Choose Location --</option>
+          <option>Admin</option><option>5BB</option><option>Despetch</option>
+          <option>EHS</option><option>Line 1</option><option>Line 2</option>
+          <option>Line 3</option><option>Line 4</option><option>Line 5</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:14px;">
+      <div class="field">
+        <label>Device Type <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="radio-option" id="u_lbl_pc">
+            <input type="radio" name="u_device_type" value="PC" onchange="onUpdateDeviceTypeChange()"> 🖥️ PC
+          </label>
+          <label class="radio-option" id="u_lbl_laptop">
+            <input type="radio" name="u_device_type" value="Laptop" onchange="onUpdateDeviceTypeChange()"> 💻 Laptop
+          </label>
+          <label class="radio-option" id="u_lbl_store">
+            <input type="radio" name="u_device_type" value="Store" onchange="onUpdateDeviceTypeChange()"> 🛒 Store
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div id="u_laptop_section" class="device-section">
+      <div style="margin-top:16px;padding-top:14px;border-top:1.5px dashed var(--card-border);">
+        <div class="pc-subsection-title" style="color:#1d4ed8;margin-bottom:12px;">💻 Laptop Details</div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Model No. <span class="req">*</span></label>
+            <input type="text" id="u_laptop_model" placeholder="e.g. Pavilion 15">
+          </div>
+          <div class="field">
+            <label>Serial No. <span class="req">*</span></label>
+            <input type="text" id="u_laptop_serial" placeholder="Laptop Serial Number">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="u_pc_section" class="device-section">
+      <div style="margin-top:16px;padding-top:14px;border-top:1.5px dashed var(--card-border);">
+        <div class="pc-subsection-title" style="color:#1d4ed8;">🖥️ PC Details</div>
+        <div class="pc-subsection">
+          <div class="pc-subsection-title">🧠 CPU</div>
+          <div class="grid-2">
+            <div class="field"><label>Cpu Serial No. <span class="req">*</span></label><input type="text" id="u_device_serial" placeholder="e.g. SN-2024-001"></div>
+            <div class="field"><label>Model No. <span class="req">*</span></label><input type="text" id="u_display_model" placeholder="e.g. LG 24MP60G"></div>
+          </div>
+          <div class="grid-3" style="margin-top:12px;">
+            <div class="field"><label>Brand Name <span class="req">*</span></label>
+              <select id="u_device_brand"><option value="">-- Choose Brand --</option><option>HP</option><option>Dell</option><option>Asus</option><option>Lenovo</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="pc-subsection">
+          <div class="pc-subsection-title">🖥️ Display / Monitor</div>
+          <div class="grid-2">
+            <div class="field"><label>Display Serial No. <span class="req">*</span></label><input type="text" id="u_display_serial" placeholder="Monitor Serial No."></div>
+            <div class="field"><label>Model No. <span class="req">*</span></label><input type="text" id="u_display_model_no" placeholder="e.g. LG 24MP60G"></div>
+          </div>
+        </div>
+        <div class="pc-subsection">
+          <div class="pc-subsection-title">⌨️ Keyboard</div>
+          <div class="grid-2">
+            <div class="field"><label>Brand <span class="req">*</span></label><input type="text" id="u_kb_brand" placeholder="e.g. Logitech"></div>
+            <div class="field"><label>Serial No. <span class="req">*</span></label><input type="text" id="u_kb_serial" placeholder="Keyboard Serial No."></div>
+          </div>
+        </div>
+        <div class="pc-subsection">
+          <div class="pc-subsection-title">🖱️ Mouse</div>
+          <div class="grid-2">
+            <div class="field"><label>Brand <span class="req">*</span></label><input type="text" id="u_mouse_brand" placeholder="e.g. Logitech"></div>
+            <div class="field"><label>Serial No. <span class="req">*</span></label><input type="text" id="u_mouse_serial" placeholder="Mouse Serial No."></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="u_store_section" class="device-section">
+      <div style="margin-top:16px;padding-top:14px;border-top:1.5px dashed var(--card-border);">
+        <div class="pc-subsection-title" style="color:#0f766e;margin-bottom:12px;">🛒 Store Item Details</div>
+        <div class="grid-2">
+          <div class="field"><label>Model No. <span class="req">*</span></label><input type="text" id="u_store_model" placeholder="Model No."></div>
+          <div class="field"><label>Serial No. <span class="req">*</span></label><input type="text" id="u_store_serial" placeholder="Item Serial No."></div>
+        </div>
+        <div class="grid-3" style="margin-top:12px;">
+          <div class="field"><label>Material Type <span class="req">*</span></label>
+            <select id="u_store_material_type">
+              <option value="">-- Choose Type --</option>
+              <option value="12V adaptor">12V adaptor</option><option value="Brother Printer Blade">Brother Printer Blade</option><option value="BIOS CELL">BIOS CELL</option><option value="Sata Cable">Sata Cable</option><option value="Zebra Scanner USB TO Lan">Zebra Scanner USB TO Lan</option><option value="Restol 2000 Cable">Restol 2000 Cable</option><option value="Printer Cable">Printer Cable</option><option value="Power Cable">Power Cable</option><option value="Printer Power Cable">Printer Power Cable</option><option value="VGA Cable">VGA Cable</option><option value="Patch Cable">Patch Cable</option><option value="DP to HDMI converter">DP to HDMI converter</option><option value="PCI Card">PCI Card</option><option value="USB Casing HHD">USB Casing HHD</option><option value="USB to Sata Cable">USB to Sata Cable</option><option value="DP to HDMI">DP to HDMI</option><option value="D-Link Cat-6">D-Link Cat-6</option><option value="Brother DRUM Set">Brother DRUM Set</option><option value="Brother DRUM">Brother DRUM</option><option value="USB to USB Extension (1.5)">USB to USB Extension (1.5)</option><option value="USB to USB Extension (3.0)">USB to USB Extension (3.0)</option><option value="USB to USB Extension (5.0)">USB to USB Extension (5.0)</option><option value="Junction Box">Junction Box</option><option value="Media Converter A">Media Converter A</option><option value="Media Converter B">Media Converter B</option><option value="Mouse Pad">Mouse Pad</option><option value="RJ 45">RJ 45</option><option value="Telephone(Panasonic)">Telephone(Panasonic)</option><option value="SMPS">SMPS</option><option value="SANDISK Pendrive">SANDISK Pendrive</option><option value="Crimping Tools">Crimping Tools</option><option value="Radmi Tablet">Radmi Tablet</option><option value="TP-Link SFP Module">TP-Link SFP Module</option><option value="CRC RACK">CRC RACK</option><option value="Brother Toner">Brother Toner</option><option value="Canon 071 cartidge">Canon 071 cartidge</option><option value="HP 4004DN(152A) cartidge">HP 4004DN(152A) cartidge</option><option value="HP Printer MFP-M72625 Toner">HP Printer MFP-M72625 Toner</option><option value="Canon 072H cartidge">Canon 072H cartidge</option><option value="HP 12A Powder">HP 12A Powder</option><option value="Brother Powder">Brother Powder</option><option value="HP Powder M72625">HP Powder M72625</option><option value="Canon/HP Printer Powder 4004(152A)(88A)">Canon/HP Printer Powder 4004(152A)(88A)</option><option value="TP-Link SFP Module RJ 45">TP-Link SFP Module RJ 45</option><option value="RAM">RAM</option><option value="SSD">SSD</option>
+            </select>
+          </div>
+          <div class="field"><label>PR No. <span class="req">*</span></label><input type="text" id="u_store_pr_no" placeholder="PR No."></div>
+          <div class="field"><label>PO No. <span class="req">*</span></label><input type="text" id="u_store_po_no" placeholder="PO No."></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:20px;">
+      <button class="btn-update" id="updateBtn" onclick="updateRecord()">✏️ Update Sheet + Server</button>
+      <button class="btn-clear" onclick="clearUpdateForm()">✖ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ BARCODE PANEL ═══════════════ -->
+<div class="op-panel" id="panel_barcode">
+
+  <!-- SUB TABS -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button id="btab_single" onclick="switchBarcodeTab('single')"
+      style="flex:1;padding:11px;border:none;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;box-shadow:0 3px 10px rgba(124,58,237,0.3);">
+      🔖 Single Barcode
+    </button>
+    <button id="btab_bulk" onclick="switchBarcodeTab('bulk')"
+      style="flex:1;padding:11px;border:none;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;background:var(--card-bg);color:var(--text);border:2px solid var(--card-border);">
+      📦 Bulk Barcode
+    </button>
+    <!-- <button id="btab_scan" onclick="switchBarcodeTab('scan')"
+      style="flex:1;padding:11px;border:none;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;background:var(--card-bg);color:var(--text);border:2px solid var(--card-border);">
+      📷 Scan
+    </button> -->
+  </div>
+
+  <!-- ── SINGLE BARCODE ── -->
+  <div id="bpanel_single">
+    <div class="search-bar-card">
+      <div class="section-title">🔖 Single Barcode Generate</div>
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="field" style="flex:1;min-width:160px;">
+          <label>Employee ID <span class="req">*</span></label>
+          <input type="text" id="b_empid" placeholder="e.g. EMP001" onkeydown="if(event.key==='Enter') singleGenerate()">
+        </div>
+        <div class="field" style="min-width:160px;">
+          <label>Device Type <span class="req">*</span></label>
+          <select id="b_device_type">
+            <option value="">-- Select --</option>
+            <option value="PC">🖥️ PC</option>
+            <option value="Laptop">💻 Laptop</option>
+            <option value="Store">🛒 Store</option>
+          </select>
+        </div>
+        <button class="btn-search" style="background:linear-gradient(135deg,#7c3aed,#a855f7);" onclick="singleGenerate()">🔖 Generate</button>
+      </div>
+    </div>
+
+    <!-- Preview on screen -->
+    <div id="singlePreviewWrap" style="display:none;margin-top:16px;">
+      <div class="search-bar-card">
+        <div class="section-title">🏷️ Label Preview</div>
+        <!-- Screen preview of the label -->
+        <div id="singleScreenPreview"
+          style="background:#fff;border:2px solid #1e40af;border-radius:10px;padding:8px 12px;
+                 width:100%;max-width:500px;margin:0 auto 14px;
+                 display:flex;flex-direction:column;align-items:center;">
+          <svg id="singleBcSvg" style="max-width:100%;"></svg>
+          <div id="singleEmpCodeLabel"
+            style="font-family:'Courier New',monospace;font-size:0.8rem;font-weight:700;
+                   color:#1e293b;letter-spacing:2px;margin-top:2px;text-align:center;"></div>
+        </div>
+        <div style="text-align:center;">
+          <button onclick="printSingleBarcode()"
+            style="padding:11px 32px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:0 3px 12px rgba(59,130,246,0.3);margin-right:8px;">
+            🖨️ Print Label
+          </button>
+          <button onclick="downloadSingleBarcode()"
+            style="padding:11px 24px;background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:0 3px 12px rgba(20,184,166,0.3);">
+            ⬇️ Download PNG
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BULK BARCODE ── -->
+  <div id="bpanel_bulk" style="display:none;">
+    <div class="search-bar-card">
+      <div class="section-title">📦 Bulk Barcode Generate</div>
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="field" style="min-width:110px;">
+          <label>From Row</label>
+          <input type="text" id="b_from_row" placeholder="e.g. 1" style="width:100%;">
+        </div>
+        <div class="field" style="min-width:110px;">
+          <label>To Row</label>
+          <input type="text" id="b_to_row" placeholder="e.g. 50" style="width:100%;">
+        </div>
+        <div class="field" style="min-width:160px;">
+          <label>Device Type <span class="req">*</span></label>
+          <select id="b_bulk_device_type">
+            <option value="">-- Select --</option>
+            <option value="PC">🖥️ PC</option>
+            <option value="Laptop">💻 Laptop</option>
+            <option value="Store">🛒 Store</option>
+          </select>
+        </div>
+        <button class="btn-search" style="background:linear-gradient(135deg,#7c3aed,#a855f7);" onclick="bulkGenerate()">📦 Generate All</button>
+      </div>
+      <!-- <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
+        ⚡ Row range = selected Device Type sheet ni data rows (1 = first entry). RAYZON already printed che, sirf barcode area print thase.
+      </p> -->
+    </div>
+
+    <!-- Bulk progress -->
+    <div id="bulkProgressWrap" style="display:none;margin-top:12px;text-align:center;">
+      <span class="loading-spinner" style="border-color:rgba(124,58,237,0.3);border-top-color:#7c3aed;"></span>
+      <span style="color:var(--text-muted);font-size:0.85rem;margin-left:8px;">Generating barcodes...</span>
+    </div>
+
+    <!-- Bulk preview -->
+    <div id="bulkPreviewWrap" style="display:none;margin-top:14px;">
+      <div class="search-bar-card">
+        <div class="section-title">
+          📋 Bulk Labels Preview —
+          <span id="bulkCountLabel" style="color:#7c3aed;font-weight:700;">0</span> barcodes
+        </div>
+        <div style="text-align:center;margin-bottom:12px;">
+          <button onclick="printAllBarcodes()"
+            style="padding:11px 32px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:0 3px 12px rgba(16,185,129,0.3);">
+            🖨️ Print All Labels
+          </button>
+        </div>
+        <!-- Previews list -->
+        <div id="bulkPreviewList"
+          style="display:flex;flex-direction:column;gap:6px;max-height:420px;overflow-y:auto;padding:4px;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCAN ──
+  <div id="bpanel_scan" style="display:none;">
+    <div class="search-bar-card">
+      <div class="section-title">📷 Barcode / QR Scan</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:14px;">
+        Mobile camera thi barcode scan karo → Employee details aavse
+      </p>
+      <div id="scannerContainer" style="width:100%;max-width:420px;margin:0 auto 16px;border-radius:14px;overflow:hidden;border:2px solid #7c3aed;background:#000;min-height:220px;display:flex;align-items:center;justify-content:center;">
+        <span id="scannerPlaceholder" style="color:#a78bfa;font-size:0.85rem;padding:20px;text-align:center;">📷 Camera aavse yahan...</span>
+        <div id="reader" style="width:100%;"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button id="btnStartScan" onclick="startScanner()"
+          style="padding:10px 22px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;">
+          ▶ Camera Start
+        </button>
+        <button id="btnStopScan" onclick="stopScanner()" style="display:none;padding:10px 22px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;">
+          ⏹ Stop
+        </button>
+      </div>
+      <div id="scanResultBox" style="display:none;margin-top:18px;">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">✅ Scan Result</div>
+        <div id="scanResultTable" style="background:var(--subsection-bg);border:1px solid var(--card-border);border-radius:12px;overflow:hidden;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.82rem;"></table>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button onclick="goToUpdate()" style="flex:1;padding:10px;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.83rem;">✏️ Update</button>
+          <button onclick="goToDelete()" style="flex:1;padding:10px;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.83rem;">🗑️ Delete</button>
+          <button onclick="generateFromScan()" style="flex:1;padding:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.83rem;">🔖 Print Label</button>
+        </div>
+      </div>
+    </div>
+  </div> -->
+
+</div></div>
+
+<div class="op-panel" id="panel_delete">
+  <div class="search-bar-card">
+    <div class="section-title">🗑️ Delete Employee Record</div>
+    <!-- <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:14px;">Employee company muki ne gayu hoy tyare eno record delete karo. Emp ID enter karo.</p> -->
+    <div class="search-bar-inner">
+      <div class="field">
+        <label>Employee ID <span class="req">*</span></label>
+        <input type="text" id="d_search_empid" placeholder="e.g. EMP001">
+      </div>
+      <button class="btn-search-del" onclick="fetchDeleteRecord()">🔍 Search Record</button>
+    </div>
+
+    <div class="fetched-record" id="deleteFetchedPreview">
+      <h4>📋 Record Found (Delete karva mate):</h4>
+      <table id="deletePreviewTable"></table>
+    </div>
+
+    <div class="delete-confirm" id="deleteConfirm">
+      <p>⚠️ Are you sure? This record will be permanently deleted from the Google Sheet!</p>
+      <button class="btn-confirm-del" id="confirmDelBtn" onclick="confirmDelete()">🗑️ Yes, Delete From Both</button>
+      <button class="btn-cancel" onclick="cancelDelete()">✖ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SERVER_IP_URL = 'http://localhost:8080/api/backup'; 
+
+let currentDeviceType = '';
+let updateDeviceType = '';
+let scriptUrl = '';
+let currentTheme = 'light';
+
+// ─── INIT ───
+(function init() {
+  scriptUrl = localStorage.getItem('device_script_url') || '';
+  if (scriptUrl) {
+    document.getElementById('scriptUrl').value = scriptUrl;
+    updateConnectionStatus(true);
+  }
+  const saved = localStorage.getItem('device_theme') || 'light';
+  if (saved === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').checked = true;
+    document.getElementById('themeLabel').textContent = '🌙 Dark';
+    currentTheme = 'dark';
+  }
+})();
+
+// ─── LOCAL PYTHON SERVER SYNC FUNCTION ───
+async function syncWithLocalServer(payload, action) {
+  if(!SERVER_IP_URL) return true;
+  try {
+    const response = await fetch(SERVER_IP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action, data: payload })
+    });
+    if(!response.ok) throw new Error('Server status: ' + response.status);
+    console.log('✅ Local server synchronized safely for: ' + action);
+    return true;
+  } catch (error) {
+    console.error('❌ Local backup failed:', error);
+    showToast('⚠️ Saved to Google Sheet, but Local Shared Folder backup failed!', 'error');
+    return false;
+  }
+}
+
+// ─── THEME ───
+function toggleTheme() {
+  const isDark = document.getElementById('themeToggle').checked;
+  currentTheme = isDark ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  document.getElementById('themeLabel').textContent = isDark ? '🌙 Dark' : '☀️ Light';
+  localStorage.setItem('device_theme', currentTheme);
+}
+
+// ─── TABS (handled in barcode section below) ───
+
+// ─── CONNECTION ───
+function saveUrl() {
+  const url = document.getElementById('scriptUrl').value.trim();
+  if (!url.includes('script.google.com')) {
+    showToast('⚠️ Please enter a valid Google Apps Script URL', 'error'); return;
+  }
+  scriptUrl = url;
+  localStorage.setItem('device_script_url', url);
+  updateConnectionStatus(true);
+  showToast('✅ Google Sheets connected!', 'success');
+}
+
+function updateConnectionStatus(connected) {
+  const banner = document.getElementById('configBanner');
+  const dot = document.getElementById('statusDot');
+  if (connected) {
+    banner.classList.add('connected');
+    dot.classList.add('green');
+    banner.querySelector('.config-banner-text strong').innerHTML =
+      '<span class="status-dot green"></span>Connected to Google Sheets ✓';
+  } else {
+    banner.classList.remove('connected');
+    dot.classList.remove('green');
+  }
+}
+
+// ─── DEVICE TYPE CHANGE WITH AUTO INCREMENT ───
+async function onDeviceTypeChange() {
+  const val = document.querySelector('input[name="device_type"]:checked')?.value;
+  currentDeviceType = val || '';
+  
+  document.getElementById('laptop_section').classList.toggle('visible', val === 'Laptop');
+  document.getElementById('pc_section').classList.toggle('visible', val === 'PC');
+  document.getElementById('store_section').classList.toggle('visible', val === 'Store');
+  document.getElementById('lbl_pc').classList.toggle('selected', val === 'PC');
+  document.getElementById('lbl_laptop').classList.toggle('selected', val === 'Laptop');
+  document.getElementById('lbl_store').classList.toggle('selected', val === 'Store');
+
+  if (currentDeviceType && scriptUrl) {
+    const serialInput = document.getElementById('serial_no');
+    serialInput.value = "Fetching S/N...";
+    
+    try {
+      const resp = await fetch(scriptUrl, {
+        method: 'POST',
+        body: JSON.stringify({ __action: 'get_next_serial', 'Device Type': currentDeviceType }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      const result = await resp.json();
+      if (result.status === 'success') {
+        serialInput.value = result.next_serial;
+      } else {
+        serialInput.value = "Error generating ID";
+      }
+    } catch (err) {
+      console.error(err);
+      serialInput.value = "Server Error";
+    }
+  }
+}
+
+function onUpdateDeviceTypeChange() {
+  const val = document.querySelector('input[name="u_device_type"]:checked')?.value;
+  updateDeviceType = val || '';
+  document.getElementById('u_laptop_section').classList.toggle('visible', val === 'Laptop');
+  document.getElementById('u_pc_section').classList.toggle('visible', val === 'PC');
+  document.getElementById('u_store_section').classList.toggle('visible', val === 'Store');
+  document.getElementById('u_lbl_pc').classList.toggle('selected', val === 'PC');
+  document.getElementById('u_lbl_laptop').classList.toggle('selected', val === 'Laptop');
+  document.getElementById('u_lbl_store').classList.toggle('selected', val === 'Store');
+}
+
+// ─── HELPERS ───
+function getVal(id) { return (document.getElementById(id)?.value || '').trim(); }
+function setVal(id, v) { const el = document.getElementById(id); if(el) el.value = v || ''; }
+function setError(id, has) {
+  const el = document.getElementById(id);
+  if (el) has ? el.classList.add('error') : el.classList.remove('error');
+}
+
+// ─── INSERT VALIDATE (Dynamic columns only) ───
+function validateAndCollect() {
+  let valid = true;
+  const baseFields = ['serial_no','plant_name','emp_id','emp_name','department','location'];
+  baseFields.forEach(id => { const v = getVal(id); setError(id, !v); if(!v) valid=false; });
+  if (!currentDeviceType) valid = false;
+  
+  if (currentDeviceType === 'Laptop') {
+    ['laptop_model','laptop_serial'].forEach(id => { setError(id,!getVal(id)); if(!getVal(id)) valid=false; });
+  }
+  if (currentDeviceType === 'PC') {
+    ['device_serial','display_model','device_brand','display_serial','display_model_no','kb_brand','kb_serial','mouse_brand','mouse_serial'].forEach(id => {
+      setError(id,!getVal(id)); if(!getVal(id)) valid=false;
+    });
+  }
+  if (currentDeviceType === 'Store') {
+    ['store_model','store_serial','store_material_type','store_pr_no','store_po_no'].forEach(id => {
+      setError(id,!getVal(id)); if(!getVal(id)) valid=false;
+    });
+  }
+  if (!valid) { showToast('⚠️ Please fill all required fields!','error'); return null; }
+  
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const dateStr = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
+  const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  
+  // ૧. શરૂઆતની બેઝિક કોલમ્સ
+  let record = {
+    '__action': 'insert',
+    'Serial No.': getVal('serial_no'), 'Plant Name': getVal('plant_name'),
+    'Emp ID': getVal('emp_id'), 'Emp Name': getVal('emp_name'),
+    'Department': getVal('department'), 'Location': getVal('location'),
+    'Device Type': currentDeviceType
+  };
+
+  // ૨. વચ્ચે ડિવાઇસ વાઇઝ ડાયનેમિક કોલમ્સ આવશે
+  if (currentDeviceType === 'Laptop') {
+    record['Laptop Model No.'] = getVal('laptop_model');
+    record['Laptop Serial No.'] = getVal('laptop_serial');
+  } 
+  else if (currentDeviceType === 'PC') {
+    record['Device Serial No.'] = getVal('device_serial');
+    record['Device Brand'] = getVal('device_brand');
+    record['Display Model No.'] = getVal('display_model_no');
+    record['Display Serial No.'] = getVal('display_serial');
+    record['Keyboard Brand'] = getVal('kb_brand');
+    record['Keyboard Serial No.'] = getVal('kb_serial');
+    record['Mouse Brand'] = getVal('mouse_brand');
+    record['Mouse Serial No.'] = getVal('mouse_serial');
+  } 
+  else if (currentDeviceType === 'Store') {
+    record['Store Model No.'] = getVal('store_model');
+    record['Store Serial No.'] = getVal('store_serial');
+    record['Store Material Type'] = getVal('store_material_type');
+    record['Store PR No.'] = getVal('store_pr_no');
+    record['Store PO No.'] = getVal('store_po_no');
+  }
+  
+  // ૩. છેલ્લે Date અને Time એપેન્ડ થશે
+  record['Date'] = dateStr;
+  record['Time'] = timeStr;
+  
+  return record;
+}
+
+// ─── INSERT SUBMIT ───
+async function submitForm() {
+  if (!scriptUrl) { showToast('⚠️ Please connect Google Sheets first!','error'); return; }
+  const row = validateAndCollect();
+  if (!row) return;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="loading-spinner"></span>Saving...';
+  try {
+    const resp = await fetch(scriptUrl, { method:'POST', body:JSON.stringify(row), headers:{'Content-Type':'text/plain'} });
+    const result = await resp.json();
+    if (result.status === 'success') {
+      document.getElementById('rec_count').textContent = result.rows;
+      
+      await syncWithLocalServer(row, 'insert');
+      
+      showToast('✅ Entry saved successfully!','success');
+      clearForm();
+    } else throw new Error(result.message || 'Unknown error');
+  } catch(err) { showToast('❌ Error: ' + err.message,'error'); }
+  finally { btn.disabled=false; btn.innerHTML='💾 Insert to Sheet + Server'; }
+}
+
+function clearForm() {
+  document.querySelectorAll('#panel_insert input[type="text"], #panel_insert select')
+    .forEach(i => { i.value=''; i.classList.remove('error'); });
+  document.querySelectorAll('#panel_insert input[type="radio"]').forEach(r => r.checked=false);
+  currentDeviceType='';
+  document.getElementById('laptop_section').classList.remove('visible');
+  document.getElementById('pc_section').classList.remove('visible');
+  document.getElementById('store_section').classList.remove('visible');
+  document.getElementById('lbl_pc').classList.remove('selected');
+  document.getElementById('lbl_laptop').classList.remove('selected');
+  document.getElementById('lbl_store').classList.remove('selected');
+}
+
+// ─── FETCH RECORD (Update) ───
+async function fetchRecord() {
+  if (!scriptUrl) { showToast('⚠️ Please connect Google Sheets first!','error'); return; }
+  const empId = getVal('u_search_empid');
+  if (!empId) { showToast('⚠️ Employee ID enter karo!','error'); return; }
+  showToast('🔍 Searching...','success');
+  try {
+    const resp = await fetch(scriptUrl, { method:'POST', body:JSON.stringify({ __action:'fetch', 'Emp ID': empId }), headers:{'Content-Type':'text/plain'} });
+    const result = await resp.json();
+    if (result.status !== 'success') throw new Error(result.message);
+    const d = result.data;
+    
+    const tbl = document.getElementById('fetchedTable');
+    tbl.innerHTML = '';
+    Object.entries(d).forEach(([k,v]) => {
+      if (v) tbl.innerHTML += `<tr><td>${k}</td><td>${v}</td></tr>`;
+    });
+    document.getElementById('fetchedPreview').classList.add('visible');
+    
+    setVal('u_serial_no', d['Serial No.']);
+    setVal('u_plant_name', d['Plant Name']);
+    setVal('u_emp_id', d['Emp ID']);
+    setVal('u_emp_name', d['Emp Name']);
+    setVal('u_department', d['Department']);
+    setVal('u_location', d['Location']);
+    
+    const dtype = d['Device Type'] || searchType;
+    updateDeviceType = dtype;
+    document.querySelectorAll('input[name="u_device_type"]').forEach(r => {
+      r.checked = r.value === dtype;
+    });
+    document.getElementById('u_laptop_section').classList.toggle('visible', dtype==='Laptop');
+    document.getElementById('u_pc_section').classList.toggle('visible', dtype==='PC');
+    document.getElementById('u_store_section').classList.toggle('visible', dtype==='Store');
+    document.getElementById('u_lbl_pc').classList.toggle('selected', dtype==='PC');
+    document.getElementById('u_lbl_laptop').classList.toggle('selected', dtype==='Laptop');
+    document.getElementById('u_lbl_store').classList.toggle('selected', dtype==='Store');
+    
+    if (dtype==='Laptop') {
+      setVal('u_laptop_model', d['Laptop Model No.']);
+      setVal('u_laptop_serial', d['Laptop Serial No.']);
+    }
+    else if (dtype==='PC') {
+      setVal('u_device_serial', d['Device Serial No.']);
+      setVal('u_device_brand', d['Device Brand']);
+      setVal('u_kb_brand', d['Keyboard Brand']);
+      setVal('u_kb_serial', d['Keyboard Serial No.']);
+      setVal('u_mouse_brand', d['Mouse Brand']);
+      setVal('u_mouse_serial', d['Mouse Serial No.']);
+      setVal('u_display_model', d['Display Model No.']);
+      setVal('u_display_serial', d['Display Serial No.']);
+    }
+    else if (dtype==='Store') {
+      setVal('u_store_model', d['Store Model No.']);
+      setVal('u_store_serial', d['Store Serial No.']);
+      setVal('u_store_material_type', d['Store Material Type']);
+      setVal('u_store_pr_no', d['Store PR No.']);
+      setVal('u_store_po_no', d['Store PO No.']);
+    }
+    document.getElementById('updateFormCard').style.display = 'block';
+    showToast('✅ Record found...','success');
+  } catch(err) { showToast('❌ ' + err.message,'error'); document.getElementById('fetchedPreview').classList.remove('visible'); document.getElementById('updateFormCard').style.display='none'; }
+}
+
+// ─── UPDATE SUBMIT ───
+async function updateRecord() {
+  if (!scriptUrl) { showToast('⚠️ Please connect Google Sheets first!','error'); return; }
+  const empId = getVal('u_emp_id');
+  if (!empId) { showToast('⚠️ Emp ID missing!','error'); return; }
+  
+  let valid = true;
+  const fieldsToValidate = ['u_plant_name', 'u_emp_name', 'u_department', 'u_location'];
+  fieldsToValidate.forEach(id => { setError(id, !getVal(id)); if(!getVal(id)) valid = false; });
+  
+  if (updateDeviceType === 'Laptop') {
+    ['u_laptop_model','u_laptop_serial'].forEach(id => { setError(id,!getVal(id)); if(!getVal(id)) valid=false; });
+  } else if (updateDeviceType === 'PC') {
+    ['u_device_serial','u_display_model','u_device_brand','u_display_serial','u_kb_brand','u_kb_serial','u_mouse_brand','u_mouse_serial'].forEach(id => {
+      setError(id,!getVal(id)); if(!getVal(id)) valid=false;
+    });
+  } else if (updateDeviceType === 'Store') {
+    ['u_store_model','u_store_serial','u_store_material_type','u_store_pr_no','u_store_po_no'].forEach(id => {
+      setError(id,!getVal(id)); if(!getVal(id)) valid=false;
+    });
+  }
+  if (!valid) { showToast('⚠️ Please fill all required fields!','error'); return; }
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  
+  let payload = {
+    '__action': 'update',
+    'Serial No.': getVal('u_serial_no'), 'Plant Name': getVal('u_plant_name'),
+    'Emp ID': empId, 'Emp Name': getVal('u_emp_name'),
+    'Department': getVal('u_department'), 'Location': getVal('u_location'),
+    'Device Type': updateDeviceType
+  };
+
+  if (updateDeviceType === 'Laptop') {
+    payload['Laptop Model No.'] = getVal('u_laptop_model');
+    payload['Laptop Serial No.'] = getVal('u_laptop_serial');
+  } 
+  else if (updateDeviceType === 'PC') {
+    payload['Device Serial No.'] = getVal('u_device_serial');
+    payload['Device Brand'] = getVal('u_device_brand');
+    payload['Display Model No.'] = getVal('u_display_model');
+    payload['Display Serial No.'] = getVal('u_display_serial');
+    payload['Keyboard Brand'] = getVal('u_kb_brand');
+    payload['Keyboard Serial No.'] = getVal('u_kb_serial');
+    payload['Mouse Brand'] = getVal('u_mouse_brand');
+    payload['Mouse Serial No.'] = getVal('u_mouse_serial');
+  } 
+  else if (updateDeviceType === 'Store') {
+    payload['Store Model No.'] = getVal('u_store_model');
+    payload['Store Serial No.'] = getVal('u_store_serial');
+    payload['Store Material Type'] = getVal('u_store_material_type');
+    payload['Store PR No.'] = getVal('u_store_pr_no');
+    payload['Store PO No.'] = getVal('u_store_po_no');
+  }
+
+  // Date & Time છેક છેલ્લે
+  payload['Date'] = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
+  payload['Time'] = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+  const btn = document.getElementById('updateBtn');
+  btn.disabled=true; btn.innerHTML='<span class="loading-spinner"></span>Updating...';
+  try {
+    const resp = await fetch(scriptUrl, { method:'POST', body:JSON.stringify(payload), headers:{'Content-Type':'text/plain'} });
+    const result = await resp.json();
+    if (result.status==='success') {
+      
+      await syncWithLocalServer(payload, 'update');
+      
+      showToast('✅ Record updated successfully!','success');
+      clearUpdateForm();
+    } else throw new Error(result.message);
+  } catch(err) { showToast('❌ ' + err.message,'error'); }
+  finally { btn.disabled=false; btn.innerHTML='✏️ Update Sheet + Server'; }
+}
+
+function clearUpdateForm() {
+  document.querySelectorAll('#panel_update input[type="text"], #panel_update select')
+    .forEach(i => { i.value=''; i.classList.remove('error'); });
+  document.querySelectorAll('#panel_update input[type="radio"]').forEach(r => r.checked=false);
+  updateDeviceType='';
+  document.getElementById('u_laptop_section').classList.remove('visible');
+  document.getElementById('u_pc_section').classList.remove('visible');
+  document.getElementById('u_store_section').classList.remove('visible');
+  document.getElementById('u_lbl_pc').classList.remove('selected');
+  document.getElementById('u_lbl_laptop').classList.remove('selected');
+  document.getElementById('u_lbl_store').classList.remove('selected');
+  document.getElementById('fetchedPreview').classList.remove('visible');
+  document.getElementById('updateFormCard').style.display='none';
+}
+
+// ─── DELETE ───
+async function fetchDeleteRecord() {
+  if (!scriptUrl) { showToast('⚠️ Please connect Google Sheets first!','error'); return; }
+  const empId = getVal('d_search_empid');
+  if (!empId) { showToast('⚠️ Employee ID enter karo!','error'); return; }
+  try {
+    const resp = await fetch(scriptUrl, { method:'POST', body:JSON.stringify({ __action:'fetch', 'Emp ID': empId }), headers:{'Content-Type':'text/plain'} });
+    const result = await resp.json();
+    if (result.status!=='success') throw new Error(result.message);
+    const d = result.data;
+    const tbl = document.getElementById('deletePreviewTable');
+    tbl.innerHTML='';
+    ['Emp ID','Emp Name','Department','Plant Name','Device Type','Location'].forEach(k => {
+      if (d[k]) tbl.innerHTML += `<tr><td>${k}</td><td>${d[k]}</td></tr>`;
+    });
+    window._deleteFoundDeviceType = d['Device Type'] || '';
+    document.getElementById('deleteFetchedPreview').classList.add('visible');
+    document.getElementById('deleteConfirm').classList.add('visible');
+    showToast('⚠️ Record found. Confirm deletion.','error');
+  } catch(err) {
+    showToast('❌ ' + err.message,'error');
+    document.getElementById('deleteFetchedPreview').classList.remove('visible');
+    document.getElementById('deleteConfirm').classList.remove('visible');
+  }
+}
+
+async function confirmDelete() {
+  if (!scriptUrl) return;
+  const empId = getVal('d_search_empid');
+  const foundDeviceType = window._deleteFoundDeviceType || '';
+  const btn = document.getElementById('confirmDelBtn');
+  btn.disabled=true; btn.innerHTML='<span class="loading-spinner"></span>Deleting...';
+  try {
+    const resp = await fetch(scriptUrl, { method:'POST', body:JSON.stringify({ __action:'delete', 'Emp ID': empId }), headers:{'Content-Type':'text/plain'} });
+    const result = await resp.json();
+    if (result.status==='success') {
+      
+      await syncWithLocalServer({ 'Emp ID': empId, 'Device Type': foundDeviceType }, 'delete');
+      
+      showToast('✅ Record deleted successfully!','success');
+      cancelDelete();
+    } else throw new Error(result.message);
+  } catch(err) { showToast('❌ '+err.message,'error'); }
+  finally { btn.disabled=false; btn.innerHTML='🗑️ Yes, Delete From Both'; }
+}
+
+function cancelDelete() {
+  document.getElementById('d_search_empid').value='';
+  window._deleteFoundDeviceType = '';
+  document.getElementById('deleteFetchedPreview').classList.remove('visible');
+  document.getElementById('deleteConfirm').classList.remove('visible');
+}
+
+// ═══════════════════════════════════════════
+// BARCODE FUNCTIONS
+// Label: 60mm x 15mm total
+// Barcode area: 50mm wide, 0.1mm top/bottom space, 0.5mm left/right space
+// Emp Code shown below barcode
+// RAYZON already pre-printed on label — we print only barcode area
+// ═══════════════════════════════════════════
+
+function switchTab(tab) {
+  ['insert','update','delete','barcode'].forEach(t => {
+    document.getElementById('panel_'+t).classList.remove('active');
+    document.getElementById('tab_'+t).className = 'op-tab';
+  });
+  document.getElementById('panel_'+tab).classList.add('active');
+  document.getElementById('tab_'+tab).className = 'op-tab active-'+tab;
+}
+
+function switchBarcodeTab(tab) {
+  ['single','bulk','scan'].forEach(t => {
+    document.getElementById('bpanel_'+t).style.display = t===tab ? '' : 'none';
+    const btn = document.getElementById('btab_'+t);
+    if (t===tab) {
+      btn.style.background = 'linear-gradient(135deg,#7c3aed,#a855f7)';
+      btn.style.color = '#fff';
+      btn.style.border = 'none';
+    } else {
+      btn.style.background = 'var(--card-bg)';
+      btn.style.color = 'var(--text)';
+      btn.style.border = '2px solid var(--card-border)';
+    }
+  });
+  if (tab !== 'scan') stopScanner();
+}
+
+// ── Draw barcode into an SVG element ──
+// Dimensions per sketch:
+//   Label total: 60mm x 15mm
+//   Barcode area width: 50mm (with 0.5mm L/R margin inside that)
+//   Barcode area height: ~11mm (0.1mm top space, 0.1mm bottom space, text below)
+function drawBarcodeToSvg(svgEl, empId) {
+  try {
+    JsBarcode(svgEl, String(empId || 'NOID'), {
+      format: 'CODE128',
+      width: 1.8,
+      height: 52,
+      displayValue: false,
+      margin: 0,
+      background: '#ffffff',
+      lineColor: '#000000'
+    });
+  } catch (err) {
+    console.error('JsBarcode preview failed for', empId, err);
+    showToast('⚠️ Barcode banavva mate invalid Emp ID', 'error');
+  }
+}
+
+// ── Make a hi-res PNG canvas of exactly the barcode area ──
+// Returns Promise<{canvas, empId}>
+function makeBarcodeCanvas(empId) {
+  return new Promise(resolve => {
+    // 60mm x 15mm @ 96dpi = 226.77 x 56.69px; use 8x scale for quality
+    const SCALE = 8;
+    // Total label: 60x15mm. We print barcode area only (not RAYZON part)
+    // Sketch: barcode area = 50mm wide, 15mm tall (full height of label)
+    // We add 0.5mm left/right space, 0.1mm top/bottom → effective barcode: ~49mm x ~14.8mm
+    const LBL_W_MM = 60, LBL_H_MM = 15;
+    const PX_PER_MM = (96 / 25.4) * SCALE;
+    const W = Math.round(LBL_W_MM * PX_PER_MM);
+    const H = Math.round(LBL_H_MM * PX_PER_MM);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    // Barcode area: 0.5mm left/right margin, 0.1mm top/bottom
+    const marginL  = Math.round(0.5 * PX_PER_MM);
+    const marginT  = Math.round(0.1 * PX_PER_MM);
+    const marginB  = Math.round(0.1 * PX_PER_MM);
+    const textH    = Math.round(2.8 * PX_PER_MM); // emp code text area
+    const bcW      = W - marginL * 2;
+    const bcH      = H - marginT - marginB - textH;
+
+    const tmpSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    try {
+      JsBarcode(tmpSvg, String(empId || 'NOID'), {
+        format: 'CODE128',
+        width: Math.max(1, Math.round(bcW / 120)),
+        height: bcH,
+        displayValue: false,
+        margin: 0,
+        background: '#ffffff',
+        lineColor: '#000000'
+      });
+    } catch (err) {
+      console.error('JsBarcode failed for', empId, err);
+      ctx.fillStyle = '#ff0000';
+      ctx.font = `bold ${Math.round(2 * PX_PER_MM)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Invalid Emp ID', W / 2, H / 2);
+      resolve({ canvas, empId });
+      return;
+    }
+
+    const svgData = new XMLSerializer().serializeToString(tmpSvg);
+    const img = new Image();
+    img.onload = () => {
+      // Draw barcode
+      ctx.drawImage(img, marginL, marginT, bcW, bcH);
+      // Draw emp code text below barcode
+      const fontSize = Math.round(2.2 * PX_PER_MM);
+      ctx.fillStyle = '#000000';
+      ctx.font = `bold ${fontSize}px "Courier New", monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(empId, W / 2, H - textH / 2 - marginB);
+      resolve({ canvas, empId });
+    };
+    img.onerror = () => resolve({ canvas, empId });
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  });
+}
+
+// ══ SINGLE GENERATE ══
+let _singleEmpId = '';
+
+async function singleGenerate() {
+  if (!scriptUrl) { showToast('⚠️ Google Sheets connect karo!','error'); return; }
+  const empId  = (document.getElementById('b_empid').value || '').trim();
+  const dtype  = document.getElementById('b_device_type').value;
+  if (!empId) { showToast('⚠️ Emp ID nakho!','error'); return; }
+  if (!dtype) { showToast('⚠️ Device Type select karo!','error'); return; }
+
+  showToast('🔍 Fetching...','success');
+  try {
+    const resp = await fetch(scriptUrl, {
+      method:'POST',
+      body: JSON.stringify({ __action:'fetch', 'Emp ID': empId }),
+      headers: {'Content-Type':'text/plain'}
+    });
+    const res = await resp.json();
+    if (res.status !== 'success') throw new Error(res.message);
+
+    _singleEmpId = empId;
+    // Draw to screen SVG preview
+    const svgEl = document.getElementById('singleBcSvg');
+    drawBarcodeToSvg(svgEl, empId);
+    document.getElementById('singleEmpCodeLabel').textContent = empId;
+    document.getElementById('singlePreviewWrap').style.display = '';
+    showToast('✅ Barcode ready!','success');
+  } catch(e) { showToast('❌ ' + e.message,'error'); }
+}
+
+function printSingleBarcode() {
+  if (!_singleEmpId) { showToast('⚠️ Pehela generate karo!','error'); return; }
+  makeBarcodeCanvas(_singleEmpId).then(({canvas}) => {
+    const imgData = canvas.toDataURL('image/png');
+    const win = window.open('','_blank');
+    win.document.write(`<!DOCTYPE html><html><head>
+<title>Barcode ${_singleEmpId}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  @page{size:60mm 15mm;margin:0;}
+  body{background:#fff;width:60mm;height:15mm;}
+  img{width:60mm;height:15mm;display:block;object-fit:fill;}
+</style></head><body>
+<img src="${imgData}">
+<script>window.onload=function(){setTimeout(function(){window.print();window.close();},400);}<\/script>
+</body></html>`);
+    win.document.close();
+  });
+}
+
+function downloadSingleBarcode() {
+  if (!_singleEmpId) { showToast('⚠️ Pehela generate karo!','error'); return; }
+  makeBarcodeCanvas(_singleEmpId).then(({canvas, empId}) => {
+    const a = document.createElement('a');
+    a.download = 'barcode_' + empId + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    showToast('⬇️ Downloaded!','success');
+  });
+}
+
+// ══ BULK GENERATE ══
+let _bulkRecords = [];
+
+async function bulkGenerate() {
+  if (!scriptUrl) { showToast('⚠️ Google Sheets connect karo!','error'); return; }
+  const fromRow = parseInt(document.getElementById('b_from_row').value) || 1;
+  const toRow   = parseInt(document.getElementById('b_to_row').value)   || 1;
+  const dtype   = document.getElementById('b_bulk_device_type').value;
+  if (!dtype) { showToast('⚠️ Device Type select karo!','error'); return; }
+  if (fromRow > toRow) { showToast('⚠️ From row must be ≤ To row!','error'); return; }
+
+  document.getElementById('bulkProgressWrap').style.display = '';
+  document.getElementById('bulkPreviewWrap').style.display  = 'none';
+
+  try {
+    const resp = await fetch(scriptUrl, {
+      method: 'POST',
+      body: JSON.stringify({ __action:'fetchByRowRange', fromRow, toRow, 'Device Type': dtype }),
+      headers: {'Content-Type':'text/plain'}
+    });
+    const res = await resp.json();
+    if (res.status !== 'success') throw new Error(res.message);
+
+    _bulkRecords = res.data || [];
+    if (_bulkRecords.length === 0) {
+      document.getElementById('bulkProgressWrap').style.display = 'none';
+      showToast('⚠️ No records found in that range!','error'); return;
+    }
+
+    // Build preview
+    const list = document.getElementById('bulkPreviewList');
+    list.innerHTML = '';
+    document.getElementById('bulkCountLabel').textContent = _bulkRecords.length;
+
+    // Render all canvases
+    const canvasPromises = _bulkRecords.map(d => makeBarcodeCanvas(d['Emp ID'] || 'NOID'));
+    const rendered = await Promise.all(canvasPromises);
+
+    rendered.forEach(({canvas, empId}) => {
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'background:#fff;border:1.5px solid #334155;border-radius:6px;overflow:hidden;display:flex;align-items:center;padding:3px 8px;gap:10px;';
+      const previewCanvas = document.createElement('canvas');
+      // Screen preview: 300px wide, keep aspect
+      const aspect = canvas.height / canvas.width;
+      previewCanvas.width  = 300;
+      previewCanvas.height = Math.round(300 * aspect);
+      previewCanvas.style.cssText = 'display:block;border-radius:3px;flex-shrink:0;';
+      const ctx = previewCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, 0, previewCanvas.width, previewCanvas.height);
+      const lbl = document.createElement('span');
+      lbl.textContent = empId;
+      lbl.style.cssText = 'font-size:0.78rem;color:var(--text-muted);font-family:monospace;';
+      wrapper.appendChild(previewCanvas);
+      wrapper.appendChild(lbl);
+      list.appendChild(wrapper);
+    });
+
+    // Store canvases for print
+    window._bulkCanvases = rendered;
+    document.getElementById('bulkProgressWrap').style.display = 'none';
+    document.getElementById('bulkPreviewWrap').style.display  = '';
+    showToast('✅ ' + _bulkRecords.length + ' barcodes ready!','success');
+
+  } catch(e) {
+    document.getElementById('bulkProgressWrap').style.display = 'none';
+    showToast('❌ ' + e.message,'error');
+  }
+}
+
+function printAllBarcodes() {
+  const canvases = window._bulkCanvases;
+  if (!canvases || canvases.length === 0) { showToast('⚠️ Pehela generate karo!','error'); return; }
+
+  const labelsHtml = canvases.map(({canvas}) =>
+    '<div class="lbl"><img src="' + canvas.toDataURL('image/png') + '"></div>'
+  ).join('');
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head>
+<title>Bulk Barcode Print</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  @page{size:60mm 15mm;margin:0;}
+  body{background:#fff;}
+  .lbl{width:60mm;height:15mm;overflow:hidden;page-break-after:always;page-break-inside:avoid;}
+  .lbl:last-child{page-break-after:avoid;}
+  .lbl img{width:60mm;height:15mm;display:block;object-fit:fill;}
+</style></head><body>
+${labelsHtml}
+<script>window.onload=function(){setTimeout(function(){window.print();window.close();},600);}<\/script>
+</body></html>`);
+  win.document.close();
+}
+
+// ── Keep old generateBarcode alias for scan tab ──
+async function generateBarcode() {
+  // For scan tab redirect to single
+  const empId = lastScannedEmpId || (document.getElementById('b_empid')||{}).value || '';
+  document.getElementById('b_empid').value = empId;
+  switchBarcodeTab('single');
+  await singleGenerate();
+}
+
+function generateFromScan() {
+  if (!lastScannedEmpId) return;
+  switchBarcodeTab('single');
+  document.getElementById('b_empid').value = lastScannedEmpId;
+  setTimeout(() => singleGenerate(), 200);
+}
+
+// Keep alias
+function generateBarcodeFromScan() { generateFromScan(); }
+
+// ─── MISC ───
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+type; t.style.display='block';
+  setTimeout(()=>{ t.style.display='none'; },4000);
+}
+</script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+</body>
+</html>
